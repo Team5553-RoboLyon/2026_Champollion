@@ -14,7 +14,7 @@ RobotState::RobotState(frc::Pose2d& initialPose,
           0.0_m,
           initialPose,
     #if ROBOT_MODEL != SIMULATION          
-          wpi::array<double, 3>{5, 5, 0.2},     // std dev odometry (m, m, rad)
+          wpi::array<double, 3>{1.5, 1.5, 0.15},     // std dev odometry (m, m, rad)
           wpi::array<double, 3>{0.1, 0.1, 0.3}         // std dev vision (m, m, rad)
     #else
             wpi::array<double, 3>{0.05, 0.05, 0.1},     // std dev odometry (m, m, rad)

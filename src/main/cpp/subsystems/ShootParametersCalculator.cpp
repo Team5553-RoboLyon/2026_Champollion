@@ -27,6 +27,7 @@ ShootParametersCalculator::ShootParametersCalculator()
     m_flywheelSpeedMap.insert(3.44, 3000.0);
     m_flywheelSpeedMap.insert(4.49, 3450.0);
     m_flywheelSpeedMap.insert(5.33, 3850.0);
+    m_flywheelSpeedMap.insert(9.0, FlywheelConstants::Speed::MAX);  
     // m_flywheelSpeedMap.insert(1.25, 2500.0); //tuneme
     // m_flywheelSpeedMap.insert(2.535, 3200.0); //tuneme
     // m_flywheelSpeedMap.insert(3.037, 3450.0); //tuneme
@@ -38,6 +39,7 @@ ShootParametersCalculator::ShootParametersCalculator()
     m_timeToReachTargetMap.insert(3.44, 1.16); 
     m_timeToReachTargetMap.insert(4.49, 1.35); 
     m_timeToReachTargetMap.insert(5.33, 1.49);
+    m_timeToReachTargetMap.insert(9.0, 2.6);
     // m_timeToReachTargetMap.insert(1.25, 1.03); //tuneme
     // m_timeToReachTargetMap.insert(2.535, 1.3); //tuneme
     // m_timeToReachTargetMap.insert(3.037, 1.4); //tuneme
