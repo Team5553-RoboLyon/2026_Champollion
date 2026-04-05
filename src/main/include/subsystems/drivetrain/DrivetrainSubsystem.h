@@ -20,8 +20,13 @@
 #include "LyonLib/control/PidRBL.h"
 #include "LyonLib/utils/TimerRBL.h"
 
-#include "choreo/trajectory/DifferentialSample.h"
-#include "choreo/trajectory/Trajectory.h"
+#include <pathplanner/lib/auto/AutoBuilder.h>
+#include <pathplanner/lib/config/RobotConfig.h>
+#include <pathplanner/lib/controllers/PPLTVController.h>
+#include <frc/DriverStation.h>
+
+
+class RobotState;
 
 class DrivetrainSubsystem : public frc2::SubsystemBase 
 {
@@ -34,12 +39,12 @@ class DrivetrainSubsystem : public frc2::SubsystemBase
     DISABLE  
   };
 
-  DrivetrainSubsystem(DrivetrainIO *pIO);
+  DrivetrainSubsystem(DrivetrainIO* pIO, RobotState* pRobotState);
   DrivetrainSubsystem(DrivetrainIO *pIO, 
                      std::function<double()> fxForwardAxis,
                      std::function<double()> fxRotationAxis,
                      std::function<bool()> fxSlowDriveButton,
-                     std::function<bool()> fxDriveActionButton);
+                     std::function<bool()> fxDriveActionButton, RobotState* pRobotState);
 
   void SetWantedDrive(const DriveMode wantedDrive);
   SystemDrive GetSystemDrive() const;
@@ -48,10 +53,8 @@ class DrivetrainSubsystem : public frc2::SubsystemBase
                           const std::function<bool()> fxSlowDriveButton,
                           const std::function<bool()> fxDriveActionButton);
   
-  void SetAlliance(frc::DriverStation::Alliance alliance);
-
-  void SetDesiredAutoTrajectory(choreo::Trajectory<choreo::DifferentialSample> trajectory);
   void ResetOdometryPose(const frc::Pose2d pose);
+  frc::Pose2d GetOdometryPose() const { return inputs.odometryPosition; };
   
   void Periodic() override;
 
@@ -60,6 +63,8 @@ class DrivetrainSubsystem : public frc2::SubsystemBase
  private:
   DrivetrainIO *m_pTankDriveIO;
   DrivetrainIOInputs inputs;
+
+  RobotState *m_pRobotState;
 
   DriveMode m_wantedDrive = DriveMode::DISABLE;
   SystemDrive m_systemDrive = SystemDrive::DISABLE;
@@ -101,20 +106,9 @@ class DrivetrainSubsystem : public frc2::SubsystemBase
   const frc::ChassisSpeeds restSpeeds{0_mps, 0_mps, 0_rad_per_s};
 
   //AUTO
-  choreo::Trajectory<choreo::DifferentialSample> m_desiredAutoTrajectory;
   TimerRBL m_autoTimer;
-  std::optional<choreo::DifferentialSample> m_autoSampleToBeApplied;
-
   wpi::array<double, 3> Q = {0.05, 0.05, 0.2}; // x=5cm, y=5cm, heading=0.2 rad
   wpi::array<double, 2> R = {1.0, 2.0};        // lin=1 m/s, ang=2 rad/s
-  frc::LTVUnicycleController m_ltvController{Q, R, 0.02_s};
-
-
-  // Logging
-  StructLogger<frc::Pose2d> m_ErreurLogger{"/Drivetrain/PoseError"};
-  StructLogger<frc::Pose2d> m_theoriticalLogger{"/Drivetrain/ReferencePose"}; 
-
-  frc::DriverStation::Alliance m_alliance;
 
   frc::ChassisSpeeds ArcadeDrive(const std::pair<double, double> percentage);
   frc::ChassisSpeeds CurveDrive(const std::pair<double, double> percentage, const bool quickTurnEnabled);

@@ -20,6 +20,7 @@
   #include "subsystems/intake/pivot/PivotIOSim.h"
   #include "subsystems/drivetrain/DrivetrainIOSim.h"
   #include "subsystems/turret/TurretIOSim.h"
+  #include "subsystems/indexer/IndexerIOSim.h"
 #else
   #include "subsystems/shooter/flywheel/FlywheelIOSpark.h"
   #include "subsystems/shooter/hood/HoodIOSpark.h"
@@ -49,6 +50,8 @@
 #include "LyonLib/utils/MacroUtilsRBL.h"
 #include <frc/apriltag/AprilTagFieldLayout.h>
 
+#include <pathplanner/lib/commands/PathPlannerAuto.h>
+
 class RobotContainer {
  public:
   RobotContainer();
@@ -64,11 +67,7 @@ class RobotContainer {
 
   ShootParameters *pShootParams{new ShootParameters};
 
-  #if ROBOT_MODEL == SIMULATION
-    DrivetrainSubsystem drivetrain{new DrivetrainIOSim()};
-  #else
-    DrivetrainSubsystem drivetrain{new DrivetrainIOFlex()};
-  #endif
+
 
   frc::AprilTagFieldLayout aprilTagFieldLayout = frc::AprilTagFieldLayout::LoadField(frc::AprilTagField::k2026RebuiltAndyMark);
   VisionFilterParameters visionFilterParameters{
@@ -88,16 +87,16 @@ std::vector<std::shared_ptr<VisionIO>> visionIOs{
   std::make_shared<RealPhotonVisionIO>(
     "Big_brother",
     frc::Transform3d(
-      frc::Translation3d(-0.30_m, -0.20_m, 0.53_m),
-      frc::Rotation3d(-1.16_deg, -17.34_deg, 164.95_deg)
+      frc::Translation3d(-0.30_m, 0.04_m, 0.53_m),
+      frc::Rotation3d(-1.16_deg, -17.34_deg, 180_deg)
     ),
     aprilTagFieldLayout
   )
   ,std::make_shared<RealPhotonVisionIO>(
     "Lil_bro",
     frc::Transform3d(
-      frc::Translation3d(-0.87_m, 0.05_m, 0.375_m),
-      frc::Rotation3d(-0.05_deg, -26.27_deg, 2.67_deg)
+      frc::Translation3d(-0.08_m, 0.22_m, 0.375_m),
+      frc::Rotation3d(-0.05_deg, 26.27_deg, -2.67_deg)
     ),
     aprilTagFieldLayout
   )
@@ -111,30 +110,42 @@ std::vector<std::shared_ptr<VisionIO>> visionIOs{
   RobotState robotState{
     initialPose,
     kinematics,
-    ahrs,
-    &drivetrain
+    ahrs
   };
 
-  #if ROBOT_MODEL == SIMULATION
-  IndexerIOSim *indexerIOSim = new IndexerIOSim{};
-  Superstructure superstructure{new IntakeSubsystem {new RollerIOSim{}, new PivotIOSim{}},
-                                new IndexerSubsystem {indexerIOSim},
-                                new TurretSubsystem {new TurretIOSim, pShootParams},
-                                new ShooterSubsystem {new FlywheelIOSim{}, new HoodIOSim{}, pShootParams},
-                                new ClimberSubsystem {new ClimberIOSim},
-                                pShootParams};
+    #if ROBOT_MODEL == SIMULATION
+    DrivetrainSubsystem drivetrain{new DrivetrainIOSim(), &robotState};
   #else
-  Superstructure superstructure{new IntakeSubsystem {new RollerIOSpark{}, new PivotIOSpark{}},
-                                new IndexerSubsystem {new IndexerIOSpark{}},
-                                new TurretSubsystem {new TurretIOSpark{}, pShootParams},
-                                new ShooterSubsystem {new FlywheelIOSpark{}, new HoodIOSpark{}, pShootParams},
-                                new ClimberSubsystem {new ClimberIOSpark},
-                                pShootParams,
-                                &robotState};
+    DrivetrainSubsystem drivetrain{new DrivetrainIOFlex(), &robotState};
   #endif
 
+  #if ROBOT_MODEL == SIMULATION
+
+  IntakeSubsystem intakeSubsystem{new RollerIOSim{}, new PivotIOSim{}};
+  IndexerSubsystem indexerSubsystem{new IndexerIOSim{}};
+  TurretSubsystem turretSubsystem{new TurretIOSim{}, pShootParams};
+  ShooterSubsystem shooterSubsystem{new FlywheelIOSim{}, new HoodIOSim{}, pShootParams};
+  ClimberSubsystem climberSubsystem{new ClimberIOSim};
+  
+  #else
+  IntakeSubsystem intakeSubsystem{new RollerIOSpark{}, new PivotIOSpark{}};
+  IndexerSubsystem indexerSubsystem{new IndexerIOSpark{}};
+  TurretSubsystem turretSubsystem{new TurretIOSpark{}, pShootParams};
+  ShooterSubsystem shooterSubsystem{new FlywheelIOSpark{}, new HoodIOSpark{}, pShootParams};
+  ClimberSubsystem climberSubsystem{new ClimberIOSpark};
+  #endif
+  Superstructure superstructure{&intakeSubsystem,
+                                 &indexerSubsystem,
+                                 &turretSubsystem,
+                                 &shooterSubsystem,
+                                 &climberSubsystem,
+                                 pShootParams,
+                                 &robotState};
+
+                                 frc2::Command* GetAutonomousCommand();
  private:
   void ConfigureBindings();
+  frc::SendableChooser<frc2::Command *> autoChooser;
 
   frc2::JoystickButton m_toggleMaintainPidButton{&forwardJoystick, 4};
   frc2::JoystickButton m_slowdownButton{&forwardJoystick, 1}; //Binder to find

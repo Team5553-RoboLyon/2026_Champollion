@@ -11,27 +11,30 @@
 
 #include "commands/SetWantedSuperstructureSuperStateCmd.h"
 #include "commands/ToggleMaintainPidCmd.h"
+#include "commands/ToggleShooterControlMode.h"
 
 // #include "commands/SetWantedStateClimberCmd.h"
 // #include "LyonLib/utils/MacroUtilsRBL.h"
 // #include "commands/SetWantedShooterStateCmd.h"
 // #include "commands/SetSystemTurretStateCmd.h"
+#include "LyonLib/utils/MacroUtilsRBL.h"
+#include "frc/smartdashboard/SmartDashboard.h"
 
 RobotContainer::RobotContainer()
 {
+    robotState.SetDrivetrain(&drivetrain);
     ConfigureBindings();
     drivetrain.ConfigureManualControlInputsAxis([this] { return NDEADBAND(-forwardJoystick.GetY(), driveConstants::Settings::DEADBAND); },
                                       [this] { return NDEADBAND(-rotationJoystick.GetZ(), driveConstants::Settings::DEADBAND); },
                                       [this] { return m_slowdownButton.Get(); },
                                       [this] { return 0;});
 
+  // Build an auto chooser. This will use frc2::cmd::None() as the default option.
+  autoChooser = pathplanner::AutoBuilder::buildAutoChooser();
+
+  frc::SmartDashboard::PutData("Auto Chooser", &autoChooser);
 }
 void RobotContainer::ConfigureBindings() {
-
-    refuelButton.ToggleOnTrue(SetWantedSuperstructureSuperStateCmd(&superstructure, Superstructure::WantedSuperState::REFUEL)
-                              .WithInterruptBehavior(frc2::Command::InterruptionBehavior::kCancelSelf));
-    refuelButton.ToggleOnFalse(SetWantedSuperstructureSuperStateCmd(&superstructure, Superstructure::WantedSuperState::STOP_INTAKE)
-                              .WithInterruptBehavior(frc2::Command::InterruptionBehavior::kCancelSelf));
 
     operatorGamepad.PREPARE_REFUEL.ToggleOnTrue(SetWantedSuperstructureSuperStateCmd(&superstructure, Superstructure::WantedSuperState::PREPARE_REFUEL)
                               .WithInterruptBehavior(frc2::Command::InterruptionBehavior::kCancelSelf));
@@ -79,6 +82,13 @@ void RobotContainer::ConfigureBindings() {
 
     m_toggleMaintainPidButton.ToggleOnTrue(ToggleMaintainPidCmd(&superstructure).ToPtr());
 
+    refuelButton.ToggleOnTrue(SetWantedSuperstructureSuperStateCmd(&superstructure, Superstructure::WantedSuperState::REFUEL)
+                              .WithInterruptBehavior(frc2::Command::InterruptionBehavior::kCancelSelf));
+    refuelButton.ToggleOnFalse(SetWantedSuperstructureSuperStateCmd(&superstructure, Superstructure::WantedSuperState::STOP_INTAKE)
+                              .WithInterruptBehavior(frc2::Command::InterruptionBehavior::kCancelSelf));
+
+    operatorGamepad.TOGGLE_SHOOTER.ToggleOnTrue(ToggleShooterControlMode(&superstructure).ToPtr());
+
     vision.SetDefaultCommand(vision.ProcessVision(
     [this] {
         return robotState.GetPose().value();
@@ -87,4 +97,9 @@ void RobotContainer::ConfigureBindings() {
         robotState.AddVisionMeasurement(measurement);
     }));
 
+}
+
+frc2::Command* RobotContainer::GetAutonomousCommand() {
+    // return pathplanner::PathPlannerAuto("1stAuto").ToPtr();
+    return autoChooser.GetSelected();
 }

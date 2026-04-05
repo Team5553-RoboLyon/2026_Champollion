@@ -43,7 +43,7 @@ void FlywheelIOSpark::UpdateInputs(FlywheelIOInputs& inputs)
 
     inputs.isRightMotorConnected = (m_rightMotor.GetBusVoltage() !=0.0) && !m_rightMotor.GetFaults().can;
 
-    inputs.rightMotorBusVoltage = m_rightMotor.GetBusVoltage();
+     inputs.rightMotorBusVoltage = m_rightMotor.GetBusVoltage();
     inputs.rightMotorAppliedVoltage = m_rightMotor.GetAppliedOutput() * inputs.rightMotorBusVoltage;
     inputs.rightMotorCurrent = m_rightMotor.GetOutputCurrent();
     inputs.rightMotorTemperature = m_rightMotor.GetMotorTemperature();

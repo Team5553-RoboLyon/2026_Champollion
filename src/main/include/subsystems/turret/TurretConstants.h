@@ -34,7 +34,7 @@ namespace TurretConstants
         constexpr double MOTOR_RATIO = (5.23)*(5.23);
         constexpr double GEAR_RATIO = (130.0/24.0)*MOTOR_RATIO; //ul
         constexpr double MOTOR_FREE_SPEED = Motor::VOLTAGE_COMPENSATION * Motor::KV; //RPM
-        constexpr frc::Translation2d ROBOT_TO_TURRET{-0.165_m, 0.149_m}; //TUNEME
+        constexpr frc::Translation2d ROBOT_TO_TURRET{-0.165_m, -0.149_m}; //TUNEME
     }
 
     namespace Encoder 
@@ -84,8 +84,8 @@ namespace TurretConstants
     
     namespace Settings
     {
-        constexpr double BOTTOM_LIMIT = -NF64_PI_2; //TUNEME
-        constexpr double TOP_LIMIT = NF64_PI_2; //TUNEME
+        constexpr double BOTTOM_LIMIT = NDEGtoRAD(-160.0);
+        constexpr double TOP_LIMIT = NDEGtoRAD(80.0);
         constexpr double MANUAL_SETPOINT_CHANGE_LIMIT = (TOP_LIMIT - BOTTOM_LIMIT) / (2.0/TIME_PER_CYCLE); //TUNEME
         constexpr double OPEN_LOOP_REDUC = 10.0;
     }

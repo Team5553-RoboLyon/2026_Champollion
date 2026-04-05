@@ -51,15 +51,17 @@ void DrivetrainIOFlex::UpdateInputs(DrivetrainIOInputs& inputs)
     inputs.isFrontLeftMotorConnected = (m_motorFrontLeft.GetBusVoltage() != 0.0) && !m_motorFrontLeft.GetFaults().can;
     inputs.isFrontRightMotorConnected = (m_motorFrontRight.GetBusVoltage() != 0.0) && !m_motorFrontRight.GetFaults().can;
 
-    inputs.backLeftMotorAppliedVoltage = units::volt_t(m_motorBackLeft.GetAppliedOutput() * driveConstants::Motors::VOLTAGE_COMPENSATION);
-    inputs.backRightMotorAppliedVoltage = units::volt_t(m_motorBackRight.GetAppliedOutput() * driveConstants::Motors::VOLTAGE_COMPENSATION);
-    inputs.frontLeftMotorAppliedVoltage = units::volt_t(m_motorFrontLeft.GetAppliedOutput() * driveConstants::Motors::VOLTAGE_COMPENSATION);
-    inputs.frontRightMotorAppliedVoltage = units::volt_t(m_motorFrontRight.GetAppliedOutput() * driveConstants::Motors::VOLTAGE_COMPENSATION);
-
     inputs.backLeftMotorBusVoltage = units::volt_t(m_motorBackLeft.GetBusVoltage());
     inputs.backRightMotorBusVoltage = units::volt_t(m_motorBackRight.GetBusVoltage());
     inputs.frontLeftMotorBusVoltage = units::volt_t(m_motorFrontLeft.GetBusVoltage());
     inputs.frontRightMotorBusVoltage = units::volt_t(m_motorFrontRight.GetBusVoltage());
+
+
+    inputs.backLeftMotorAppliedVoltage = units::volt_t(m_motorBackLeft.GetAppliedOutput() * inputs.backLeftMotorBusVoltage);
+    inputs.backRightMotorAppliedVoltage = units::volt_t(m_motorBackRight.GetAppliedOutput() * inputs.backRightMotorBusVoltage);
+    inputs.frontLeftMotorAppliedVoltage = units::volt_t(m_motorFrontLeft.GetAppliedOutput() * inputs.frontLeftMotorBusVoltage);
+    inputs.frontRightMotorAppliedVoltage = units::volt_t(m_motorFrontRight.GetAppliedOutput() * inputs.frontRightMotorBusVoltage);
+
 
     inputs.backLeftMotorCurrent = units::ampere_t(m_motorBackLeft.GetOutputCurrent());
     inputs.backRightMotorCurrent = units::ampere_t(m_motorBackRight.GetOutputCurrent());
@@ -166,6 +168,17 @@ void DrivetrainIOFlex::SetChassisSpeed(const frc::ChassisSpeeds &speeds)
                                             * driveConstants::Motors::VOLTAGE_COMPENSATION));
     m_motorBackRight.SetVoltage(units::volt_t(rightOutput / driveConstants::Specifications::MOTOR_FREE_SPEED 
                                             * driveConstants::Motors::VOLTAGE_COMPENSATION));
+}
+
+frc::ChassisSpeeds DrivetrainIOFlex::GetChassisSpeed() const
+{
+    double leftSideSpeed = m_realLeftSideSpeed;
+    double rightSideSpeed = m_realRightSideSpeed;
+
+    double linearVelocity = (leftSideSpeed + rightSideSpeed) / 2.0;
+    double angularVelocity = (rightSideSpeed - leftSideSpeed) / driveConstants::Specifications::TRACKWIDTH;
+
+    return frc::ChassisSpeeds{units::meters_per_second_t(linearVelocity), 0_mps, units::radians_per_second_t(angularVelocity)};
 }
 
 void DrivetrainIOFlex::ResetPosition(const frc::Pose2d& position)

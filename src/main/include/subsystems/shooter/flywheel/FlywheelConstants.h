@@ -22,7 +22,7 @@ namespace FlywheelConstants
 
         constexpr IdleMode IDLE_MODE = IdleMode::kCoast;
         constexpr double VOLTAGE_COMPENSATION = 12.0; //TUNEME
-        constexpr double CURRENT_LIMIT = 60.0;
+        constexpr double CURRENT_LIMIT = 40.0;
         constexpr double RAMP_RATE = 0.0;
         constexpr int HOT_THRESHOLD = 60;
         constexpr int OVERHEATING_THRESHOLD = 75;
@@ -94,7 +94,7 @@ namespace FlywheelConstants
         constexpr double TOLERANCE = 200.0; //TUNEME
         constexpr double FEED = 1200.0; //TUNEME
         constexpr double BACKWARD = -1000.0; //TUNEME
-        constexpr double AGAINST_ALLIANCE_ZONE = 1000.0;
+        constexpr double AGAINST_ALLIANCE_ZONE = 3500.0;
         constexpr double AGAINST_HUB = 2300.0; //TUNEME
         constexpr double TO_ALLIANCE_ZONE = 3000.0; //TUNEME
         constexpr double MAX_FOR_SHOOT = 4500.0; //TUNEME

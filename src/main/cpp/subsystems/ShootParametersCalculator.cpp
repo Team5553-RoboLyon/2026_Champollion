@@ -9,20 +9,41 @@
 
 ShootParametersCalculator::ShootParametersCalculator()
 {
-    m_hoodPosMap.insert(1.20, NDEGtoRAD(1.2));
-    m_hoodPosMap.insert(2.535, NDEGtoRAD(12));
-    m_hoodPosMap.insert(3.037, NDEGtoRAD(14));
-    m_hoodPosMap.insert(5.163, NDEGtoRAD(19.1));
+    m_hoodPosMap.insert(0.87, NDEGtoRAD(1.3)); 
+    m_hoodPosMap.insert(1.14, NDEGtoRAD(1.85)); 
+    m_hoodPosMap.insert(1.72, NDEGtoRAD(2.95));
+    m_hoodPosMap.insert(3.44, NDEGtoRAD(18));
+    m_hoodPosMap.insert(4.49, NDEGtoRAD(18.5));
+    m_hoodPosMap.insert(5.33, NDEGtoRAD(19.1));
 
-    m_flywheelSpeedMap.insert(1.20, 2200.0);
-    m_flywheelSpeedMap.insert(2.535, 3150.0);
-    m_flywheelSpeedMap.insert(3.037, 3350.0);
-    m_flywheelSpeedMap.insert(5.163, 3580.0);
+    // // m_hoodPosMap.insert(1.12, NDEGtoRAD(1.2)); //tuneme
+    // m_hoodPosMap.insert(2.535, NDEGtoRAD(12)); //tuneme
+    // m_hoodPosMap.insert(3.037, NDEGtoRAD(14)); //tuneme
+    // m_hoodPosMap.insert(5.163, NDEGtoRAD(19.1)); //tuneme
 
-    m_timeToReachTargetMap.insert(1.20, 1.2); //tuneme
-    m_timeToReachTargetMap.insert(2.535, 1.3); //tuneme
-    m_timeToReachTargetMap.insert(3.037, 1.4); //tuneme
-    m_timeToReachTargetMap.insert(5.163, 1.63);
+    m_flywheelSpeedMap.insert(0.87, 2250.0);
+    m_flywheelSpeedMap.insert(1.14, 2500.0);
+    m_flywheelSpeedMap.insert(1.72, 2850.0);
+    m_flywheelSpeedMap.insert(3.44, 3000.0);
+    m_flywheelSpeedMap.insert(4.49, 3450.0);
+    m_flywheelSpeedMap.insert(5.33, 3850.0);
+    m_flywheelSpeedMap.insert(9.0, FlywheelConstants::Speed::MAX);  
+    // m_flywheelSpeedMap.insert(1.25, 2500.0); //tuneme
+    // m_flywheelSpeedMap.insert(2.535, 3200.0); //tuneme
+    // m_flywheelSpeedMap.insert(3.037, 3450.0); //tuneme
+    // m_flywheelSpeedMap.insert(5.163, 3500.0); //tuneme
+
+    m_timeToReachTargetMap.insert(1.25, 1.06);
+    m_timeToReachTargetMap.insert(1.25, 1.04); 
+    m_timeToReachTargetMap.insert(1.25, 1.25); 
+    m_timeToReachTargetMap.insert(3.44, 1.16); 
+    m_timeToReachTargetMap.insert(4.49, 1.35); 
+    m_timeToReachTargetMap.insert(5.33, 1.49);
+    m_timeToReachTargetMap.insert(9.0, 2.6);
+    // m_timeToReachTargetMap.insert(1.25, 1.03); //tuneme
+    // m_timeToReachTargetMap.insert(2.535, 1.3); //tuneme
+    // m_timeToReachTargetMap.insert(3.037, 1.4); //tuneme
+    // m_timeToReachTargetMap.insert(5.163, 1.63); //tuneme
 }
 
 void ShootParametersCalculator::SetAlliance(frc::DriverStation::Alliance alliance)
@@ -39,9 +60,12 @@ void ShootParametersCalculator::SetAlliance(frc::DriverStation::Alliance allianc
     }
 }
 
-void ShootParametersCalculator::SetRobotPos(frc::Pose2d robotPos, double timestamp)
+void ShootParametersCalculator::SetTurretPos(frc::Pose2d robotPos, double turretOrientation, double timestamp)
 {
-    m_lastRobotPos = robotPos;
+    frc::Transform2d turretPosInRobotFrame = {TurretConstants::Specifications::ROBOT_TO_TURRET.X(),
+                                             TurretConstants::Specifications::ROBOT_TO_TURRET.Y(),
+                                             units::radian_t{turretOrientation}};
+    m_lastTurretPos = robotPos + turretPosInRobotFrame;
     m_lastTimestamp = timestamp;
     // m_logger.Log(m_hubTargetPos);
 }
@@ -50,55 +74,87 @@ void ShootParametersCalculator::CalculateHubNewParameters(ShootParameters& param
 { 
     m_logger.Log(m_hubTargetPos);
 
-    frc::Transform2d robotDisplacement = robotPos - m_lastRobotPos;
-    double elapsedTime = m_lastTimestamp-timestamp;
+    vec2D robot;
+    vec2D i_robot;
+    vec2D j_robot;
+    vec2D turret;
+    vec2D i_turret;
+    vec2D j_turret;
+    vec2D turretTerrain;
+    vec2D i_turretTerrain;
+    vec2D j_turretTerrain;
+    vec2D hub;
 
-    double XSpeedInField = robotDisplacement.X().value()/(elapsedTime);
-    double YSpeedInField = robotDisplacement.Y().value()/(elapsedTime);
-    double rotationSpeed = robotDisplacement.Rotation().Radians().value()/(elapsedTime);
+    //0 robot sur terrain
+    robot.x = robotPos.X().value();
+    robot.y = robotPos.Y().value();
+    i_robot.x = cos(robotPos.Rotation().Radians().value());
+    i_robot.y = sin(robotPos.Rotation().Radians().value());
+    j_robot.x = -i_robot.y;
+    j_robot.y = i_robot.x;
 
-    frc::Pose2d estimatedNextRobotPos = robotPos.Exp(frc::Twist2d{units::meter_t(XSpeedInField * TIME_PER_CYCLE), 
-                                                                  units::meter_t(YSpeedInField * TIME_PER_CYCLE),
-                                                                  units::radian_t(rotationSpeed * TIME_PER_CYCLE)});
+    //1 tourelle sur robot:
+    turret.x = TurretConstants::Specifications::ROBOT_TO_TURRET.X().value();
+    turret.y = TurretConstants::Specifications::ROBOT_TO_TURRET.Y().value();
+    i_turret.x = cos(turretOrientation);
+    i_turret.y = sin(turretOrientation);
+    j_turret.x = -i_turret.y;
+    j_turret.y = i_turret.x;
 
-        
-    frc::Pose2d turretPosInNextRobotFrame = {TurretConstants::Specifications::ROBOT_TO_TURRET.X(),
-                                             TurretConstants::Specifications::ROBOT_TO_TURRET.Y(),
-                                             units::radian_t{turretOrientation}};
+    //2 tourelle sur terrain:
+    turretTerrain.x = robot.x + turret.x*i_robot.x + turret.y*j_robot.x;
+    turretTerrain.y = robot.y + turret.x*i_robot.y + turret.y*j_robot.y;
+    // i_turretTerrain.x = cos(turretOrientation);
+    // i_turretTerrain.y = sin(turretOrientation);
+    // j_turretTerrain.x = -i_robot.y;
+    // j_turretTerrain.y = i_robot.x;
 
-    frc::Pose2d hubPosInRobotFrame = m_hubTargetPos.RelativeTo(robotPos);
-    frc::Pose2d hubPosInNextTurretFrame = {(hubPosInRobotFrame.X()-turretPosInNextRobotFrame.X())*cos(turretOrientation) + (hubPosInRobotFrame.Y()-turretPosInNextRobotFrame.Y())*sin(turretOrientation),
-                                           -(hubPosInRobotFrame.X()-turretPosInNextRobotFrame.X())*sin(turretOrientation) + (hubPosInRobotFrame.Y()-turretPosInNextRobotFrame.Y())*cos(turretOrientation),
-                                           0.0_deg};
+    //3 hub dans terrain
+    hub.x = m_hubTargetPos.X().value();
+    hub.y = m_hubTargetPos.Y().value();
 
-    // frc::Transform2d TurretInRobot = frc::Transform2d{frc::Pose2d{},turretPosInNextRobotFrame};
-    // frc::Transform2d HubInTurret = frc::Transform2d{frc::Pose2d{},hubPosInNextTurretFrame};
+    //4 vecteur tourelle-hub
+    vec2D th;
+    th.x = hub.x-turretTerrain.x;
+    th.y = hub.y-turretTerrain.y;
 
-    // frc::Pose2d hubInFieldForTurret = robotPos.TransformBy(TurretInRobot).TransformBy(HubInTurret);
-    // m_projectedLogger.Log(hubInFieldForTurret);
+    //5 vitesse tourelle
+    double elapsedTime = timestamp-m_lastTimestamp;
+    frc::SmartDashboard::PutNumber("elapsedTime", elapsedTime);
 
-    //Correction de la position du hub pour compenser de la vitesse du robot
-    double hubToTurretDistance = sqrt(pow(hubPosInNextTurretFrame.X().value(),2) + pow(hubPosInNextTurretFrame.Y().value(),2));
-    double timeToReachHub = m_timeToReachTargetMap[hubToTurretDistance];
+    vec2D vTurret;
+    vTurret.x = (turretTerrain.x - m_lastTurretPos.X().value())/elapsedTime;
+    vTurret.y = (turretTerrain.y - m_lastTurretPos.Y().value())/elapsedTime;
 
-    double XSpeedInRobotFrame = XSpeedInField*cos(robotPos.Rotation().Radians().value()); //There is no Y speed in robot frame because we're in a tank drivetrain
+    //6 temps de vol
+    double dth = sqrt(th.x*th.x + th.y*th.y);
+    double timeOfFlight = m_timeToReachTargetMap[dth];
+    frc::SmartDashboard::PutNumber("timeOfFlight", timeOfFlight);
 
-    double XSpeedInTurretFrame = XSpeedInRobotFrame*cos(turretOrientation);
-    double YSpeedInTurretFrame = -XSpeedInRobotFrame*sin(turretOrientation);
+    //7 projection
+    vec2D projectedHub = hub;
 
-    frc::Pose2d correctedTargetPose = hubPosInNextTurretFrame;
-    double correctedTargetToTurretDistance = hubToTurretDistance;
+    for (int i = 0; i < 20; i++) //TUNEME
+    {
+        timeOfFlight = m_timeToReachTargetMap[dth];
+        projectedHub.x = hub.x - timeOfFlight*vTurret.x;
+        projectedHub.y = hub.y - timeOfFlight*vTurret.y;
+        th.x = projectedHub.x-turretTerrain.x;
+        th.y = projectedHub.y-turretTerrain.y;
+        dth = sqrt(th.x*th.x + th.y*th.y);
+    }
 
-    // for (int i = 0; i < 20; i++) //TUNEME
-    // {
-        timeToReachHub = m_timeToReachTargetMap[correctedTargetToTurretDistance];
-        correctedTargetPose = {correctedTargetPose + frc::Transform2d {units::meter_t(-XSpeedInTurretFrame*timeToReachHub), 
-                                                                          units::meter_t(-YSpeedInTurretFrame*timeToReachHub),
-                                                                          0.0_rad}};
-        correctedTargetToTurretDistance = sqrt(pow(correctedTargetPose.X().value(),2) + pow(correctedTargetPose.Y().value(),2));
-    // }
+    //8 Angle de visee
+    vec2D tp;
+    tp.x = projectedHub.x-turretTerrain.x;
+    tp.y = projectedHub.y-turretTerrain.y;
+    double TurretAngleOnField = atan2(tp.y,tp.x);
+    params.lookAheadTargetTurretPos = PIPI(TurretAngleOnField - robotPos.Rotation().Radians().value());
 
-    params.hoodAngle = m_hoodPosMap[correctedTargetToTurretDistance];
+    //9 Autres parametres
+    double dtp = sqrt(tp.x*tp.x + tp.y*tp.y);
+
+    params.hoodAngle = m_hoodPosMap[dtp];
     if (params.hoodAngle < HoodConstants::Position::MIN)
     {
         params.flywheelSpeed = FlywheelConstants::Speed::AGAINST_HUB;
@@ -106,98 +162,122 @@ void ShootParametersCalculator::CalculateHubNewParameters(ShootParameters& param
     }
     else if (params.hoodAngle > HoodConstants::Position::MAX)
     {
-        params.flywheelSpeed = m_flywheelSpeedMap[correctedTargetToTurretDistance];
+        params.flywheelSpeed = m_flywheelSpeedMap[dtp];
         params.hoodAngle = HoodConstants::Position::MAX;
     }
     else
-        params.flywheelSpeed = m_flywheelSpeedMap[correctedTargetToTurretDistance];
+        params.flywheelSpeed = m_flywheelSpeedMap[dtp];
 
-    double turretTargetAngleOffset = atan2(correctedTargetPose.Y().value(), correctedTargetPose.X().value());
-
-    params.lookAheadTargetTurretPos = PIPI(turretOrientation + turretTargetAngleOffset);
-
-    params.lookAheadTargetPos = correctedTargetPose;
-
-    SetRobotPos(robotPos, timestamp);
+    SetTurretPos(robotPos, turretOrientation, timestamp);
 
     //Log projected hub pos in field
-    frc::Transform2d TurretInRobot = frc::Transform2d{frc::Pose2d{},turretPosInNextRobotFrame};
-    frc::Transform2d HubInTurret = frc::Transform2d{frc::Pose2d{},correctedTargetPose};
+    frc::Pose2d ProjectedHubPose {units::meter_t(projectedHub.x), units::meter_t(projectedHub.y),{}};
+    m_projectedLogger.Log(ProjectedHubPose);
 
-    frc::Pose2d correctedHubInFieldForTurret = robotPos.TransformBy(TurretInRobot).TransformBy(HubInTurret);
-    m_projectedLogger.Log(correctedHubInFieldForTurret);
-
-    //log turret pos in field
-    frc::Pose2d turretPosInField = robotPos.TransformBy(TurretInRobot);
-    m_turretLogger.Log(turretPosInField);
+    //log turret pos in field;
+    frc::Pose2d TurretInFieldPos {units::meter_t(turretTerrain.x), units::meter_t(turretTerrain.y),
+                                    units::radian_t(robotPos.Rotation().Radians().value()+turretOrientation)};
+    m_turretLogger.Log(TurretInFieldPos);
 
     frc::SmartDashboard::PutBoolean("IsInRange", (params.lookAheadTargetTurretPos > TurretConstants::Settings::BOTTOM_LIMIT &&  params.lookAheadTargetTurretPos < TurretConstants::Settings::TOP_LIMIT));
+    params.isTargetInDeadZone = !(params.lookAheadTargetTurretPos > TurretConstants::Settings::BOTTOM_LIMIT &&  params.lookAheadTargetTurretPos < TurretConstants::Settings::TOP_LIMIT);
+
+    params.turretInTolerance = (IS_IN_RANGE(turretOrientation, params.lookAheadTargetTurretPos, m_turretTolerance));
 }
 
 void ShootParametersCalculator::CalculateAllianceZoneNewParameters(ShootParameters& params, frc::Pose2d robotPos, double turretOrientation, double timestamp)
 {
- frc::Transform2d robotDisplacement = robotPos - m_lastRobotPos;
-    double elapsedTime = m_lastTimestamp-timestamp;
+    m_logger.Log(m_hubTargetPos);
 
-    double XSpeedInField = robotDisplacement.X().value()/(elapsedTime);
-    double YSpeedInField = robotDisplacement.Y().value()/(elapsedTime);
-    double rotationSpeed = robotDisplacement.Rotation().Radians().value()/(elapsedTime);
+    vec2D robot;
+    vec2D i_robot;
+    vec2D j_robot;
+    vec2D turret;
+    vec2D i_turret;
+    vec2D j_turret;
+    vec2D turretTerrain;
+    vec2D i_turretTerrain;
+    vec2D j_turretTerrain;
+    vec2D allianceZone;
 
-    frc::Pose2d estimatedNextRobotPos = robotPos.Exp(frc::Twist2d{units::meter_t(XSpeedInField * TIME_PER_CYCLE), 
-                                                                  units::meter_t(YSpeedInField * TIME_PER_CYCLE),
-                                                                  units::radian_t(rotationSpeed * TIME_PER_CYCLE)});
+    //0 robot sur terrain
+    robot.x = robotPos.X().value();
+    robot.y = robotPos.Y().value();
+    i_robot.x = cos(robotPos.Rotation().Radians().value());
+    i_robot.y = sin(robotPos.Rotation().Radians().value());
+    j_robot.x = -i_robot.y;
+    j_robot.y = i_robot.x;
 
-        
-    frc::Pose2d turretPosInNextRobotFrame = {TurretConstants::Specifications::ROBOT_TO_TURRET.X(),
-                                             TurretConstants::Specifications::ROBOT_TO_TURRET.Y(),
-                                             units::radian_t{turretOrientation}};
+    //1 tourelle sur robot:
+    turret.x = TurretConstants::Specifications::ROBOT_TO_TURRET.X().value();
+    turret.y = TurretConstants::Specifications::ROBOT_TO_TURRET.Y().value();
+    i_turret.x = cos(turretOrientation);
+    i_turret.y = sin(turretOrientation);
+    j_turret.x = -i_turret.y;
+    j_turret.y = i_turret.x;
 
-    frc::Pose2d allianceZonePosInRobotFrame = {};
+    //2 tourelle sur terrain:
+    turretTerrain.x = robot.x + turret.x*i_robot.x + turret.y*j_robot.x;
+    turretTerrain.y = robot.y + turret.x*i_robot.y + turret.y*j_robot.y;
+    // i_turretTerrain.x = cos(turretOrientation);
+    // i_turretTerrain.y = sin(turretOrientation);
+    // j_turretTerrain.x = -i_robot.y;
+    // j_turretTerrain.y = i_robot.x;
 
-    if(robotPos.Y() > FieldConstants::FIELD_WIDTH/2.0)
+    //3 alliance zone dans terrain
+    allianceZone.x = m_allianceZoneTargetPose.X().value();
+    if (turretTerrain.y < FieldConstants::FIELD_WIDTH.value()/2.0)
     {
-        frc::Pose2d targetPos = {m_allianceZoneTargetPose.X(), 3.0*FieldConstants::FIELD_WIDTH/4.0, {}};
-        m_logger.Log(targetPos);
-        allianceZonePosInRobotFrame = targetPos.RelativeTo(estimatedNextRobotPos);
+        allianceZone.y = FieldConstants::FIELD_WIDTH.value()/4.0;
     }
     else
     {
-        frc::Pose2d targetPos = {m_allianceZoneTargetPose.X(), FieldConstants::FIELD_WIDTH/4.0, {}};
-        m_logger.Log(targetPos);
-        allianceZonePosInRobotFrame = targetPos.RelativeTo(estimatedNextRobotPos);
+        allianceZone.y = 3.0*FieldConstants::FIELD_WIDTH.value()/4.0;
     }
-    frc::Pose2d hubPosInNextTurretFrame = {(allianceZonePosInRobotFrame.X()-turretPosInNextRobotFrame.X())*cos(turretOrientation) + (allianceZonePosInRobotFrame.Y()-turretPosInNextRobotFrame.Y())*sin(turretOrientation),
-                                           -(allianceZonePosInRobotFrame.X()-turretPosInNextRobotFrame.X())*sin(turretOrientation) + (allianceZonePosInRobotFrame.Y()-turretPosInNextRobotFrame.Y())*cos(turretOrientation),
-                                           0.0_deg};
 
-    // frc::Transform2d TurretInRobot = frc::Transform2d{frc::Pose2d{},turretPosInNextRobotFrame};
-    // frc::Transform2d AllianceZoneInTurret = frc::Transform2d{frc::Pose2d{},hubPosInNextTurretFrame};
 
-    // frc::Pose2d AllianceZoneInFieldForTurret = robotPos.TransformBy(TurretInRobot).TransformBy(AllianceZoneInTurret);
-    // m_projectedLogger.Log(AllianceZoneInFieldForTurret);
+    //4 vecteur tourelle-alliance_zone
+    vec2D ta;
+    ta.x = allianceZone.x-turretTerrain.x;
+    ta.y = allianceZone.y-turretTerrain.y;
 
-    //Correction de la position du hub pour compenser de la vitesse du robot
-    double AllianceZoneToTurretDistance = sqrt(pow(hubPosInNextTurretFrame.X().value(),2) + pow(hubPosInNextTurretFrame.Y().value(),2));
-    double timeToReachAllainceZone = m_timeToReachTargetMap[AllianceZoneToTurretDistance];
+    //5 vitesse tourelle
+    double elapsedTime = timestamp-m_lastTimestamp;
+    frc::SmartDashboard::PutNumber("elapsedTime", elapsedTime);
 
-    double XSpeedInRobotFrame = XSpeedInField*cos(robotPos.Rotation().Radians().value()); //There is no Y speed in robot frame because we're in a tank drivetrain
+    vec2D vTurret;
+    vTurret.x = (turretTerrain.x - m_lastTurretPos.X().value())/elapsedTime;
+    vTurret.y = (turretTerrain.y - m_lastTurretPos.Y().value())/elapsedTime;
 
-    double XSpeedInTurretFrame = XSpeedInRobotFrame*cos(turretOrientation);
-    double YSpeedInTurretFrame = -XSpeedInRobotFrame*sin(turretOrientation);
+    //6 temps de vol
+    double dta = sqrt(ta.x*ta.x + ta.y*ta.y);
+    double timeOfFlight = m_timeToReachTargetMap[dta];
+    frc::SmartDashboard::PutNumber("timeOfFlight", timeOfFlight);
 
-    frc::Pose2d correctedTargetPose = hubPosInNextTurretFrame;
-    double correctedTargetToTurretDistance = AllianceZoneToTurretDistance;
+    //7 projection
+    vec2D projectedAllianceZone = allianceZone;
 
-    // for (int i = 0; i < 20; i++) //TUNEME
-    // {
-        timeToReachAllainceZone = m_timeToReachTargetMap[correctedTargetToTurretDistance];
-        correctedTargetPose = {correctedTargetPose + frc::Transform2d {units::meter_t(-XSpeedInTurretFrame*timeToReachAllainceZone), 
-                                                                          units::meter_t(-YSpeedInTurretFrame*timeToReachAllainceZone),
-                                                                          0.0_rad}};
-        correctedTargetToTurretDistance = sqrt(pow(correctedTargetPose.X().value(),2) + pow(correctedTargetPose.Y().value(),2));
-    // }
+    for (int i = 0; i < 20; i++) //TUNEME
+    {
+        timeOfFlight = m_timeToReachTargetMap[dta];
+        projectedAllianceZone.x = allianceZone.x - timeOfFlight*vTurret.x;
+        projectedAllianceZone.y = allianceZone.y - timeOfFlight*vTurret.y;
+        ta.x = projectedAllianceZone.x-turretTerrain.x;
+        ta.y = projectedAllianceZone.y-turretTerrain.y;
+        dta = sqrt(ta.x*ta.x + ta.y*ta.y);
+    }
 
-    params.hoodAngle = m_hoodPosMap[correctedTargetToTurretDistance];
+    //8 Angle de visee
+    vec2D tp;
+    tp.x = projectedAllianceZone.x-turretTerrain.x;
+    tp.y = projectedAllianceZone.y-turretTerrain.y;
+    double TurretAngleOnField = atan2(tp.y,tp.x);
+    params.lookAheadTargetTurretPos = PIPI(TurretAngleOnField - robotPos.Rotation().Radians().value());
+
+    //9 Autres parametres
+    double dtp = sqrt(tp.x*tp.x + tp.y*tp.y);
+
+    params.hoodAngle = m_hoodPosMap[dtp];
     if (params.hoodAngle < HoodConstants::Position::MIN)
     {
         params.flywheelSpeed = FlywheelConstants::Speed::AGAINST_HUB;
@@ -205,32 +285,27 @@ void ShootParametersCalculator::CalculateAllianceZoneNewParameters(ShootParamete
     }
     else if (params.hoodAngle > HoodConstants::Position::MAX)
     {
-        params.flywheelSpeed = m_flywheelSpeedMap[correctedTargetToTurretDistance];
+        params.flywheelSpeed = m_flywheelSpeedMap[dtp];
         params.hoodAngle = HoodConstants::Position::MAX;
     }
     else
-        params.flywheelSpeed = m_flywheelSpeedMap[correctedTargetToTurretDistance];
+        params.flywheelSpeed = m_flywheelSpeedMap[dtp];
 
-    double turretTargetAngleOffset = atan2(correctedTargetPose.Y().value(), correctedTargetPose.X().value());
-
-    params.lookAheadTargetTurretPos = PIPI(turretOrientation + turretTargetAngleOffset);
-
-    params.lookAheadTargetPos = correctedTargetPose;
-
-    SetRobotPos(robotPos, timestamp);
+    SetTurretPos(robotPos, turretOrientation, timestamp);
 
     //Log projected hub pos in field
-    frc::Transform2d TurretInRobot = frc::Transform2d{frc::Pose2d{},turretPosInNextRobotFrame};
-    frc::Transform2d AllianceZoneInTurret = frc::Transform2d{frc::Pose2d{},correctedTargetPose};
+    frc::Pose2d ProjectedHubPose {units::meter_t(projectedAllianceZone.x), units::meter_t(projectedAllianceZone.y),{}};
+    m_projectedLogger.Log(ProjectedHubPose);
 
-    frc::Pose2d correctedHubInFieldForTurret = robotPos.TransformBy(TurretInRobot).TransformBy(AllianceZoneInTurret);
-    m_projectedLogger.Log(correctedHubInFieldForTurret);
-
-    //log turret pos in field
-    frc::Pose2d turretPosInField = robotPos.TransformBy(TurretInRobot);
-    m_turretLogger.Log(turretPosInField);
+    //log turret pos in field;
+    frc::Pose2d TurretInFieldPos {units::meter_t(turretTerrain.x), units::meter_t(turretTerrain.y),
+                                    units::radian_t(robotPos.Rotation().Radians().value()+turretOrientation)};
+    m_turretLogger.Log(TurretInFieldPos);
 
     frc::SmartDashboard::PutBoolean("IsInRange", (params.lookAheadTargetTurretPos > TurretConstants::Settings::BOTTOM_LIMIT &&  params.lookAheadTargetTurretPos < TurretConstants::Settings::TOP_LIMIT));
+    params.isTargetInDeadZone = !(params.lookAheadTargetTurretPos > TurretConstants::Settings::BOTTOM_LIMIT &&  params.lookAheadTargetTurretPos < TurretConstants::Settings::TOP_LIMIT);
+
+    params.turretInTolerance = (IS_IN_RANGE(turretOrientation, params.lookAheadTargetTurretPos, m_turretTolerance));
 }
 
 
