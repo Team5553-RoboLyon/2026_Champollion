@@ -17,6 +17,7 @@
 #include "LyonLib/control/RateLimiter.h"
 #include "LyonLib/logging/Alert.h"
 #include "LyonLib/logging/ComplexStructLogger.h"
+#include "LyonLib/logging/TunableValueLogger.h"
 #include "LyonLib/control/PidRBL.h"
 #include "LyonLib/utils/TimerRBL.h"
 
@@ -24,6 +25,8 @@
 #include <pathplanner/lib/config/RobotConfig.h>
 #include <pathplanner/lib/controllers/PPLTVController.h>
 #include <frc/DriverStation.h>
+
+#include "Constants.h"
 
 
 class RobotState;
@@ -114,4 +117,9 @@ class DrivetrainSubsystem : public frc2::SubsystemBase
   frc::ChassisSpeeds CurveDrive(const std::pair<double, double> percentage, const bool quickTurnEnabled);
   frc::ChassisSpeeds FollowPath();
   std::pair<double, double> GetPercentages(); // first : Forward, second : Rotation
+
+  #if ROBOT_MODEL == DEMO
+    //Coef for demo
+    TunableValueLogger m_tunableDriveCoef {"Drivetrain coef", 0.5};
+  #endif
 };

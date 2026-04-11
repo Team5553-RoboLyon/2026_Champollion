@@ -36,7 +36,11 @@ DrivetrainSubsystem::DrivetrainSubsystem(DrivetrainIO *pIO,
         [this](){ return GetOdometryPose(); }, //TODO : replace with robot pose
         [this](const frc::Pose2d &pose){ m_pTankDriveIO->ResetPosition(pose); },
         [this](){ return m_pTankDriveIO->GetChassisSpeed(); }, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
-        [this](const frc::ChassisSpeeds &speeds){ m_pTankDriveIO->SetChassisSpeed(speeds); },
+        #if ROBOT_MODEL != DEMO
+            [this](const frc::ChassisSpeeds &speeds){ m_pTankDriveIO->SetChassisSpeed(speeds); },
+        #else
+            [this](const frc::ChassisSpeeds &speeds){ m_pTankDriveIO->SetChassisSpeed(speeds*m_tunableDriveCoef.Get()); },
+        #endif
         std::make_shared<pathplanner::PPLTVController>(Q,R,0.02_s), 
         config, // The robot configuration
         []() {
@@ -162,17 +166,29 @@ void DrivetrainSubsystem::Periodic()
 
     case SystemDrive::ARCADE_DRIVE :
         m_output = ArcadeDrive(GetPercentages());
-        m_pTankDriveIO->SetChassisSpeed(m_output);
+        #if ROBOT_MODEL != DEMO
+            m_pTankDriveIO->SetChassisSpeed(m_output);
+        #else
+            m_pTankDriveIO->SetChassisSpeed(m_output*m_tunableDriveCoef.Get());
+        #endif
         break;
     
     case SystemDrive::CURVE_DRIVE :
         m_output = CurveDrive(GetPercentages(), m_fxDriveActionButton());
-        m_pTankDriveIO->SetChassisSpeed(m_output);
+        #if ROBOT_MODEL != DEMO
+            m_pTankDriveIO->SetChassisSpeed(m_output);
+        #else
+            m_pTankDriveIO->SetChassisSpeed(m_output*m_tunableDriveCoef.Get());
+        #endif
         break;
     
     case SystemDrive::DISABLE :
         m_output = restSpeeds;
-        m_pTankDriveIO->SetChassisSpeed(m_output);
+        #if ROBOT_MODEL != DEMO
+            m_pTankDriveIO->SetChassisSpeed(m_output);
+        #else
+            m_pTankDriveIO->SetChassisSpeed(m_output*m_tunableDriveCoef.Get());
+        #endif
         break;
     
     default:
