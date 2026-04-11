@@ -42,7 +42,7 @@ namespace IndexerConstants
 
     namespace theMostImportantSensorOfTheRobot //IndexerIRbreaker
     {
-        constexpr int ID = 18;
+        constexpr int ID = 13;
         constexpr bool IS_TRIGERED = true; //TUNEME
     }
 
