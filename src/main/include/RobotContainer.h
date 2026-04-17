@@ -87,16 +87,16 @@ std::vector<std::shared_ptr<VisionIO>> visionIOs{
   std::make_shared<RealPhotonVisionIO>(
     "Big_brother",
     frc::Transform3d(
-      frc::Translation3d(-0.30_m, 0.04_m, 0.53_m),
-      frc::Rotation3d(-1.16_deg, -17.34_deg, 180_deg)
+      frc::Translation3d(-0.19_m, 0.035_m, 0.397_m),
+      frc::Rotation3d(0.59_deg, -25.39_deg, -178.49_deg)
     ),
     aprilTagFieldLayout
   )
   ,std::make_shared<RealPhotonVisionIO>(
     "Lil_bro",
     frc::Transform3d(
-      frc::Translation3d(-0.08_m, 0.22_m, 0.375_m),
-      frc::Rotation3d(-0.05_deg, 26.27_deg, -2.67_deg)
+      frc::Translation3d(-0.12_m, 0.227_m, 0.539_m),
+      frc::Rotation3d(-0.97_deg, 17.33_deg, -17.05_deg)
     ),
     aprilTagFieldLayout
   )
